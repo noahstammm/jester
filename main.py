@@ -6,7 +6,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter, CharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter, CharacterTextSplitter, TokenTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
 from langchain.prompts.chat import (
     ChatPromptTemplate,
@@ -30,7 +30,7 @@ def initializemodel():
     return chat
 
 
-def cromadb():
+def chromadb():
     loader = WebBaseLoader("https://docs.smith.langchain.com/overview")
     data = loader.load()
 
@@ -40,15 +40,7 @@ def cromadb():
         chunk_overlap=0,
     )
 
-    texts = []
-    # Since data is a list of Document objects
-    for document in data:
-        # Extracting the textual content from the 'page_content' attribute
-        page_content = document.page_content
-        split_texts = text_splitter.split_text(page_content)
-        texts.extend(split_texts)
-
-    print(texts)
+    texts = text_splitter.split_text(data)
 
     vectorstore = Chroma.from_documents(documents=texts, embedding=OpenAIEmbeddings(
         model="text-embedding-3-small",
@@ -58,6 +50,8 @@ def cromadb():
     retriever = vectorstore.as_retriever(k=4)
 
     docs = retriever.invoke("how can langsmith help with testing?")
+
+    print(docs)
 
 
 def createtemplatemessage(chat):
@@ -94,7 +88,7 @@ def invokechain(chain, userinput):
 
 
 if __name__ == "__main__":
-    cromadb()
+    chromadb()
     #initializemodel()
     #chain = createtemplatemessage(initializemodel())
     #response=invokechain(chain, "wie heisst die haupstadt von deutschland?")
