@@ -31,7 +31,6 @@ def initializemodel():
 def cromadb():
     load_dotenv()  # Lädt die Variablen aus der .env-Datei
     api_key = os.getenv("OPENAI_KEY")
-    print(api_key)
     loader = WebBaseLoader("https://docs.smith.langchain.com/overview")
     data = loader.load()
 
