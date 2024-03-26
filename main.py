@@ -1,4 +1,6 @@
 from langchain.memory import ConversationBufferMemory
+import os
+from dotenv import load_dotenv
 from langchain_community.llms import CTransformers
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -27,6 +29,9 @@ def initializemodel():
 
 
 def cromadb():
+    load_dotenv()  # Lädt die Variablen aus der .env-Datei
+    api_key = os.getenv("OPENAI_KEY")
+    print(api_key)
     loader = WebBaseLoader("https://docs.smith.langchain.com/overview")
     data = loader.load()
 
@@ -36,7 +41,7 @@ def cromadb():
 
     vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings(
         model="text-embedding-3-small",
-        openai_api_key="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"))
+        openai_api_key=api_key))
 
     # k is the number of chunks to retrieve
     retriever = vectorstore.as_retriever(k=4)
