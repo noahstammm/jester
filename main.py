@@ -20,6 +20,9 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 
 user_chat_history = ChatMessageHistory()
 
+load_dotenv()  # Lädt die Variablen aus der .env-Datei
+api_key = os.getenv("OPENAI_KEY")
+
 
 def initializemodel():
     chat = CTransformers(model="../model/llama-2-7b-chat.ggmlv3.q8_0.bin", model_type="llama",
@@ -29,8 +32,7 @@ def initializemodel():
 
 
 def cromadb():
-    load_dotenv()  # Lädt die Variablen aus der .env-Datei
-    api_key = os.getenv("OPENAI_KEY")
+
     loader = WebBaseLoader("https://docs.smith.langchain.com/overview")
     data = loader.load()
 
