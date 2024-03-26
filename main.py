@@ -1,4 +1,3 @@
-from langchain.memory import ConversationBufferMemory
 import os
 from dotenv import load_dotenv
 from langchain_community.llms import CTransformers
@@ -7,7 +6,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter, CharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
 from langchain.prompts.chat import (
     ChatPromptTemplate,
@@ -32,15 +31,26 @@ def initializemodel():
 
 
 def cromadb():
-
     loader = WebBaseLoader("https://docs.smith.langchain.com/overview")
     data = loader.load()
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-    all_splits = text_splitter.split_documents(data)
-    print(all_splits)
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        model_name="gpt-3.5-turbo",
+        chunk_size=100,
+        chunk_overlap=0,
+    )
 
-    vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings(
+    texts = []
+    # Since data is a list of Document objects
+    for document in data:
+        # Extracting the textual content from the 'page_content' attribute
+        page_content = document.page_content
+        split_texts = text_splitter.split_text(page_content)
+        texts.extend(split_texts)
+
+    print(texts)
+
+    vectorstore = Chroma.from_documents(documents=texts, embedding=OpenAIEmbeddings(
         model="text-embedding-3-small",
         openai_api_key=api_key))
 
@@ -48,8 +58,6 @@ def cromadb():
     retriever = vectorstore.as_retriever(k=4)
 
     docs = retriever.invoke("how can langsmith help with testing?")
-
-
 
 
 def createtemplatemessage(chat):
