@@ -1,5 +1,9 @@
 import os
+from langchain.docstore.document import Document
 from dotenv import load_dotenv
+from langchain_community.embeddings.sentence_transformer import (
+    SentenceTransformerEmbeddings,
+)
 from langchain_community.llms import CTransformers
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -25,7 +29,7 @@ api_key = os.getenv("OPENAI_KEY")
 
 def initializemodel():
     chat = CTransformers(model="../model/llama-2-7b-chat.ggmlv3.q8_0.bin", model_type="llama",
-                         config={'max_new_tokens': 256,'temperature': 0.01})
+                         config={'max_new_tokens': 256, 'temperature': 0.01})
 
     return chat
 
@@ -34,37 +38,63 @@ def chromadb():
     loader = WebBaseLoader("https://docs.smith.langchain.com/overview")
     data = loader.load()
 
+    # Angenommen, 'data' ist die Liste, die du erhalten hast
+    document_content = data[
+        0].page_content  # Zugriff auf das erste (und einzige) Element in der Liste und sein page_content Attribut
+
     text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         model_name="gpt-3.5-turbo",
         chunk_size=100,
         chunk_overlap=0,
     )
 
-    texts = text_splitter.split_text(data)
+    doc = [
+        Document(page_content=f"{document_content}")
+    ]
 
-    vectorstore = Chroma.from_documents(documents=texts, embedding=OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        openai_api_key=api_key))
+    splits = text_splitter.split_documents(doc)
 
-    # k is the number of chunks to retrieve
+    print(splits)
+    # create the open-source embedding function
+    embedding_function = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+
+    vectorstore = Chroma.from_documents(documents=splits, embedding=embedding_function)
+
+    # query it
+    query = "Can LangSmith help test my LLM applications?"
+    docs = vectorstore.similarity_search(query)
+
+    # print results
+    print(docs[0].page_content)
+
     retriever = vectorstore.as_retriever(k=4)
 
-    docs = retriever.invoke("how can langsmith help with testing?")
+    injection = retriever.invoke("Can LangSmith help test my LLM applications?")
 
-    print(docs)
+    print(injection)
+
+    # Extrahiere 'page_content' aus jedem Document in 'injection' und füge sie zu einem einzigen String zusammen
+    injection = ''.join(doc.page_content for doc in injection)
+
+    # Ausgabe des kombinierten Inhalts
+    print(injection)
+
+    return injection
 
 
-def createtemplatemessage(chat):
+def createtemplatemessage(chat, injection):
 
+    print(injection)
     # Create template message
     template_messages = [
-        SystemMessage(content="You translate everything to german"),
+        SystemMessage(content="You translate everything to german. And take this in consideration"+injection),
         MessagesPlaceholder(variable_name="chat_history"),
         HumanMessagePromptTemplate.from_template("{input}"),
     ]
 
     prompt = ChatPromptTemplate.from_messages(template_messages)
     print(prompt)
+
     chain = prompt | chat
 
     chain_with_message_history = RunnableWithMessageHistory(
@@ -88,9 +118,7 @@ def invokechain(chain, userinput):
 
 
 if __name__ == "__main__":
-    chromadb()
-    #initializemodel()
-    #chain = createtemplatemessage(initializemodel())
-    #response=invokechain(chain, "wie heisst die haupstadt von deutschland?")
-    #print(response)
+    chain = createtemplatemessage(initializemodel(), chromadb())
+    response = invokechain(chain, "Can LangSmith help test my LLM applications?")
+    print(response)
 
